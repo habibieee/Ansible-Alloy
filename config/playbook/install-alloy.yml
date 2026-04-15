@@ -37,7 +37,7 @@
 
     - name: 6. Deploy Alloy Configuration Template
       template:
-        src: config.alloy.j2
+        src: ../alloy-config/config.alloy.j2
         dest: /etc/alloy/config.alloy 
         owner: alloy
         group: alloy
