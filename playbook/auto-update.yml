@@ -1,0 +1,36 @@
+---
+- name: Outage Update 161 VLTD Redhat
+  hosts: vlt_servers
+  become: yes
+  serial: 20
+
+  tasks:
+    # ... (Tasks Update, Reboot, dan Nvidia-SMI yang sebelumnya) ...
+    - name: 1. Cleaning
+      dnf: {autoremove: yes, clean_all: yes}
+
+    - name: 2. Update
+      dnf: {name: "*", state: latest}
+
+    - name: 3. Reboot
+      reboot: {reboot_timeout: 900}
+
+    - name: 4. Check NVIDIA
+      command: nvidia-smi
+      register: nvidia_check
+      ignore_errors: yes # Skip error jika nvidia-smi tidak ditemukan atau gagal dijalankan
+
+  post_tasks:
+    - name: Generate Summary Report Local
+      delegate_to: localhost
+      run_once: true
+      lineinfile:
+        path: "./outage_report.log"
+        create: yes
+        line: "--- REPORT OUTAGE {{ lookup('pipe','date +%Y-%m-%d/%H:%M') }} ---"
+      
+    - name: Logging Status to File
+      delegate_to: localhost
+      lineinfile:
+        path: "./outage_report.log"
+        line: "Server: {{ inventory_hostname }} | Update: {{ 'Success' if dnf_result.changed else 'No Change' }} | Nvidia: {{ 'OK' if nvidia_check.rc == 0 else 'FAILED' }}"
