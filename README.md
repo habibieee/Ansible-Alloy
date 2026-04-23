@@ -59,7 +59,8 @@ ansible-alloy/
 ├── inventory.ini                      # Inventory hosts dan variables
 ├── diagram.excalidraw                 # Diagram arsitektur
 ├── playbook/
-│   └── install-alloy.yml              # Main playbook untuk deployment Alloy
+│   ├── install-alloy.yml              # Main playbook untuk deployment Alloy
+│   └── auto-update.yml                # Playbook untuk auto-update sistem dengan dnf
 └── alloy-config/
     └── config.alloy.j2                # Jinja2 template untuk Alloy configuration
 ```
@@ -70,8 +71,7 @@ ansible-alloy/
 |------|-----------|
 | `ansible.cfg` | Konfigurasi default Ansible (SSH args, inventory path, dll) |
 | `inventory.ini` | Daftar target hosts dan variables (credentials, URLs) |
-| `install-alloy.yml` | Playbook utama dengan 12 tasks untuk deployment & konfigurasi |
-| `config.alloy.j2` | Template konfigurasi Alloy dengan variable injection |
+| `install-alloy.yml` | Playbook utama dengan 12 tasks untuk deployment & konfigurasi || `auto-update.yml` | Playbook untuk auto-update sistem dan kernel dengan dnf || `config.alloy.j2` | Template konfigurasi Alloy dengan variable injection |
 
 ## 🚀 Instalasi
 
@@ -175,6 +175,8 @@ ansible all -i inventory.ini -m command -a "whoami"
 
 ### Menjalankan Playbook
 
+#### Install Alloy Deployment
+
 ```bash
 # Run playbook dengan verbosity
 ansible-playbook -i inventory.ini playbook/install-alloy.yml -v
@@ -191,12 +193,35 @@ ansible-playbook -i inventory.ini playbook/install-alloy.yml \
 ansible-playbook -i inventory.ini playbook/install-alloy.yml -vvv
 ```
 
-### Tasks yang Dijalankan10
+#### Auto-Update System Patches
+
+```bash
+# Run auto-update untuk semua hosts
+ansible-playbook -i inventory.ini playbook/auto-update.yml
+
+# Update security patches only
+ansible-playbook -i inventory.ini playbook/auto-update.yml \
+  -e security_only=true
+
+# Run dengan automatic reboot jika ada kernel update
+ansible-playbook -i inventory.ini playbook/auto-update.yml \
+  -e auto_reboot=true
+
+# Run pada host tertentu
+ansible-playbook -i inventory.ini playbook/auto-update.yml \
+  --limit 172.16.11.135
+
+# Kombinasi: security updates dengan auto reboot
+ansible-playbook -i inventory.ini playbook/auto-update.yml \
+  -e security_only=true -e auto_reboot=true
+```
+
+### Install-Alloy Tasks
 
 Playbook terdiri dari 12 tasks:
 
 | # | Task | Deskripsi |
-|---|------|-----------|
+|---|------|----------|
 | 1 | Update APT Cache | Update package repository dan install prerequisites |
 | 2 | Create APT Keyrings Dir | Buat directory untuk GPG keys |
 | 3 | Download Grafana GPG Key | Download GPG key untuk verifikasi paket |
@@ -207,6 +232,22 @@ Playbook terdiri dari 12 tasks:
 | 8 | Pause | Tunggu Alloy boot up (3 detik) |
 | 9-10 | Check Status | Verifikasi service status |
 | 11-12 | View Logs | Display service logs untuk debugging |
+
+### Auto-Update Tasks
+
+Playbook auto-update terdiri dari 10+ tasks:
+
+| # | Task | Deskripsi |
+|---|------|----------|
+| 1 | Display System Info | Tampilkan informasi sistem (OS, hostname, dnf version) |
+| 2 | Update All Packages | Jalankan `dnf update` untuk update semua packages |
+| 3 | Update Security Only | Update hanya security patches (jika `security_only=true`) |
+| 4-5 | Update Summary | Tampilkan summary packages yang di-update |
+| 6 | Check Kernel Update | Deteksi apakah kernel di-update |
+| 7 | Set Reboot Fact | Tentukan apakah system perlu reboot |
+| 8 | Notify Reboot Needed | Notify jika reboot diperlukan |
+| 9 | Reboot System | Reboot system (hanya jika `auto_reboot=true`) |
+| 10 | Reboot Status | Display status reboot yang berhasil |
 
 ## 📊 Monitoring
 
